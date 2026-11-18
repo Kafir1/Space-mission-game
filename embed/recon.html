@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Фотосъёмка и разведка мест посадки</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #05070f;
+  --panel: rgba(16, 24, 46, 0.86);
+  --panel-2: rgba(26, 38, 70, 0.9);
+  --line: rgba(130, 160, 230, 0.22);
+  --text: #e6ecfa;
+  --muted: #93a2c4;
+  --accent: #4ea3ff;
+  --accent-2: #7cf0d0;
+  --warn: #ffb547;
+  --bad: #ff5d6c;
+  --good: #4fe08a;
+  --gold: #ffd25a;
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: radial-gradient(ellipse at 20% 0%, #13224a 0%, #070b18 55%, var(--bg) 100%) fixed;
+  color: var(--text);
+  font-family: 'Exo 2', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+#stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+#app { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 20px 16px 60px; }
+h1, h2, h3, h4 { margin: 0 0 .5em; line-height: 1.2; }
+h2 { font-size: 1.7rem; }
+h4 { font-size: 1.05rem; color: var(--accent-2); }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.hidden { display: none !important; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row.center { justify-content: center; }
+.gap { gap: 14px; }
+.screen { animation: fadein .35s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin: 14px 0; backdrop-filter: blur(4px); }
+.badge { display: inline-block; background: var(--accent); color: #031021; font-weight: 800; font-size: .75rem; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; }
+
+.btn {
+  font: inherit; font-weight: 600; color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 16px; cursor: pointer; transition: transform .1s, background .2s, border-color .2s;
+}
+.btn:hover { border-color: var(--accent); background: #22355f; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: linear-gradient(135deg, #2f7cf0, #4ea3ff); border-color: transparent; color: #fff; }
+.btn-primary:hover { background: linear-gradient(135deg, #3d8cff, #6db5ff); }
+.btn.big { font-size: 1.1rem; padding: 13px 26px; }
+.btn.small { font-size: .85rem; padding: 6px 12px; }
+.btn.ghost { background: transparent; }
+.btn.good { background: #1c6b45; border-color: #2fae6d; }
+.btn.danger { background: #6b1c26; border-color: #c43a4b; }
+.btn.sel { border-color: var(--accent-2); box-shadow: 0 0 0 2px rgba(124, 240, 208, .35) inset; }
+input, select { font: inherit; color: var(--text); background: #0c1428; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+input[type=range] { padding: 0; accent-color: var(--accent); width: 100%; }
+
+/* ---------- Титул ---------- */
+.title-screen { text-align: center; padding-top: 7vh; }
+.title-screen h1 { font-size: clamp(2.2rem, 7vw, 4rem); font-weight: 800; letter-spacing: .02em; background: linear-gradient(90deg, #9fd0ff, #fff, #7cf0d0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lead { color: var(--muted); font-size: 1.2rem; margin-bottom: 2em; }
+.title-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.logo-orbit { position: relative; width: 180px; height: 180px; margin: 0 auto 20px; }
+.planet { position: absolute; inset: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #8fd0ff, #2a6bd1 45%, #0b2453 75%); box-shadow: 0 0 60px rgba(78, 163, 255, .45); }
+.ring { position: absolute; inset: 10px; border-radius: 50%; border: 1px dashed rgba(160, 200, 255, .4); }
+.sat { position: absolute; left: 50%; top: 50%; font-size: 26px; transform-origin: 0 0; animation: orbit 8s linear infinite; }
+@keyframes orbit { from { transform: rotate(0deg) translate(80px) rotate(0deg); } to { transform: rotate(360deg) translate(80px) rotate(-360deg); } }
+
+/* ---------- Диалог ---------- */
+.dialog { display: flex; gap: 16px; align-items: flex-start; margin: 14px 0; animation: fadein .3s ease; }
+.avatar { flex: 0 0 96px; width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--accent); box-shadow: 0 0 24px rgba(78, 163, 255, .35); overflow: hidden; background: #0d1730; }
+.avatar-svg { width: 100%; height: 100%; display: block; }
+.bubble { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 4px var(--radius) var(--radius) var(--radius); padding: 14px 18px; min-height: 96px; }
+.speaker { font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+.speaker span { font-weight: 400; color: var(--muted); font-size: .85rem; }
+.speech { min-height: 3em; font-size: 1.05rem; }
+.dialog-actions { text-align: right; margin-top: 10px; }
+.intro { padding-top: 6vh; max-width: 760px; margin: 0 auto; }
+.name-form label { display: block; margin-bottom: 6px; color: var(--muted); }
+.name-form input { flex: 1; min-width: 180px; }
+
+.hint { display: flex; gap: 10px; align-items: center; background: rgba(20, 40, 80, .75); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
+.mini-avatar { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 1px solid var(--accent); }
+.hint-text { font-size: .95rem; }
+
+/* ---------- Роли ---------- */
+.roles { text-align: center; padding-top: 3vh; }
+.role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 24px; text-align: left; }
+.role-card { font: inherit; color: inherit; text-align: left; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; transition: transform .15s, border-color .2s, box-shadow .2s; }
+.role-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 10px 40px rgba(78, 163, 255, .2); }
+.role-icon { font-size: 3rem; }
+.role-card ul { padding-left: 0; list-style: none; margin: 10px 0 0; color: var(--muted); }
+.role-card li { padding: 3px 0; }
+
+/* ---------- Меню ---------- */
+.menu-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.menu-stats { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.stars-big { color: var(--gold); font-weight: 800; font-size: 1.2rem; }
+.cat { margin-top: 22px; }
+.mission-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.mission-card { font: inherit; color: inherit; text-align: left; display: flex; gap: 14px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; cursor: pointer; transition: transform .15s, border-color .2s; }
+.mission-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.m-icon { font-size: 2.2rem; flex: 0 0 auto; }
+.m-body { flex: 1; }
+.m-body h4 { margin: 0 0 2px; color: var(--text); }
+.m-body p { margin: 0; color: var(--muted); font-size: .88rem; }
+.m-score { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.stars { color: var(--gold); letter-spacing: 2px; }
+.stars.huge { font-size: 2.4rem; }
+
+/* ---------- Брифинг/миссия/итог ---------- */
+.crumbs { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.brief-facts ul, .report { margin: 0; padding-left: 20px; }
+.brief-facts li, .report li { margin: 4px 0; }
+.brief-go { text-align: center; }
+.controls-card { text-align: left; }
+.mission-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+.mb-title { font-weight: 800; font-size: 1.25rem; }
+.result { text-align: center; }
+.result .card { text-align: left; }
+.result-score { text-align: center !important; }
+.score-num { font-size: 4rem; font-weight: 800; line-height: 1; }
+.score-num span { font-size: 1.4rem; color: var(--muted); }
+.result-talk { text-align: left; }
+
+/* ---------- Игровые элементы ---------- */
+.game-canvas { display: block; width: 100%; height: auto; background: #000; border-radius: 12px; border: 1px solid var(--line); touch-action: none; user-select: none; }
+.stage-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 8px; }
+.stage-title h3 { margin: 0; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.step { font-size: .8rem; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.step.on { border-color: var(--accent); color: var(--text); background: rgba(78, 163, 255, .15); }
+.step.done { border-color: var(--good); color: var(--good); }
+.choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.choice { font: inherit; color: inherit; cursor: pointer; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; text-align: left; flex: 1 1 200px; transition: border-color .2s; }
+.choice:hover { border-color: var(--accent); }
+.choice.sel { border-color: var(--accent-2); background: rgba(124, 240, 208, .1); }
+.choice.right { border-color: var(--good); background: rgba(79, 224, 138, .12); }
+.choice.wrong { border-color: var(--bad); background: rgba(255, 93, 108, .12); }
+.choice b { display: block; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+.meter { height: 12px; background: #0b1326; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); position: relative; }
+.meter > i { display: block; height: 100%; background: var(--accent); transition: width .15s; }
+.meter .zone { position: absolute; top: 0; bottom: 0; background: rgba(79, 224, 138, .28); border-left: 1px solid var(--good); border-right: 1px solid var(--good); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+.ok { color: var(--good); }
+.bad { color: var(--bad); }
+.warn { color: var(--warn); }
+table.data { width: 100%; border-collapse: collapse; font-size: .92rem; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.data tr.pick { cursor: pointer; }
+table.data tr.pick:hover td { background: rgba(78, 163, 255, .1); }
+.toast { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--accent); padding: 10px 18px; border-radius: 10px; z-index: 50; animation: fadein .2s; max-width: 90vw; }
+.overlay { position: absolute; inset: 0; background: rgba(3, 6, 15, .82); display: flex; align-items: center; justify-content: center; border-radius: 12px; z-index: 5; padding: 10px; }
+.overlay .card { max-width: 560px; width: 100%; }
+.canvas-wrap { position: relative; }
+
+/* Сенсорные кнопки */
+.touch-pad { display: none; justify-content: space-between; gap: 10px; margin-top: 10px; user-select: none; }
+.touch-group { display: flex; gap: 6px; flex-wrap: nowrap; }
+.touch-btn { width: 56px; height: 56px; font-size: 1.2rem; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); touch-action: none; }
+.touch-btn.wide { width: auto; padding: 0 14px; font-size: .95rem; }
+.touch-btn.on { background: var(--accent); }
+@media (pointer: coarse) { .touch-pad { display: flex; } }
+
+/* База */
+.base-layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; }
+@media (max-width: 900px) { .base-layout { grid-template-columns: 1fr; } }
+.base-grid { display: grid; gap: 2px; background: #0a0f1e; padding: 2px; border-radius: 10px; border: 1px solid var(--line); }
+.cell { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: clamp(.8rem, 2.4vw, 1.4rem); cursor: pointer; position: relative; }
+.cell.t-R { background: linear-gradient(135deg, #b9b6ad, #8f8c84); }
+.cell.t-p { background: #6f6c66; }
+.cell.t-C { background: #1d2333; cursor: not-allowed; }
+.cell.t-X { background: repeating-linear-gradient(45deg, #4e4b46, #4e4b46 4px, #3c3a36 4px, #3c3a36 8px); cursor: not-allowed; }
+.cell:hover { outline: 2px solid var(--accent); z-index: 1; }
+.cell.badplace { box-shadow: inset 0 0 0 2px var(--bad); }
+.palette { display: flex; flex-direction: column; gap: 6px; }
+.pal-item { font: inherit; color: inherit; display: flex; justify-content: space-between; gap: 8px; align-items: center; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; cursor: pointer; text-align: left; }
+.pal-item.sel { border-color: var(--accent-2); background: rgba(124, 240, 208, .12); }
+.checklist { list-style: none; padding: 0; margin: 0; font-size: .9rem; }
+.checklist li { padding: 3px 0; }
+
+/* ISRU */
+.isru-machine { display: grid; grid-template-columns: 1.4fr 2fr 70px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+@media (max-width: 640px) { .isru-machine { grid-template-columns: 1fr; } }
+.stock { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.stock div { background: #0b1326; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.stock b { display: block; font-size: 1.2rem; }
+
+/* Ретранслятор */
+.relay-table td.slot { text-align: center; cursor: pointer; min-width: 44px; font-size: .8rem; }
+.relay-table td.vis { background: rgba(79, 224, 138, .15); }
+.relay-table td.act { background: rgba(78, 163, 255, .35); font-weight: 800; }
+.relay-wrap { overflow-x: auto; }
+
+/* Провода */
+.wires { display: flex; justify-content: space-between; gap: 30px; margin: 14px 0; }
+.wire-col { display: flex; flex-direction: column; gap: 10px; }
+.wire { width: 90px; height: 32px; border-radius: 8px; border: 2px solid #0008; cursor: pointer; }
+.wire.done { opacity: .35; cursor: default; }
+.wire.sel { outline: 3px solid #fff; }
+
+@media (max-width: 600px) {
+  .dialog { gap: 10px; }
+  .avatar { flex-basis: 60px; width: 60px; height: 60px; }
+  .bubble { min-height: 60px; padding: 10px 12px; }
+  h2 { font-size: 1.35rem; }
+  .score-num { font-size: 3rem; }
+  .touch-btn { width: 46px; height: 50px; font-size: 1rem; }
+  .touch-btn.wide { padding: 0 10px; font-size: .85rem; }
+}
+
+</style>
+</head>
+<body>
+<canvas id="stars" aria-hidden="true"></canvas>
+<main id="app"></main>
+<script>
+/* ===== js/core.js ===== */
+'use strict';
+/* ===== Общие утилиты, состояние, ассистентка, реестр миссий ===== */
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+function h(html) {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return t.content.firstElementChild;
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+const fmt = (v, d = 0) => Number(v).toFixed(d);
+
+/** Детерминированный генератор случайных чисел */
+function rng(seed) {
+  let a = seed >>> 0;
+  const f = () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  f.range = (lo, hi) => lo + f() * (hi - lo);
+  f.int = (lo, hi) => Math.floor(lo + f() * (hi - lo + 1));
+  f.pick = (arr) => arr[Math.floor(f() * arr.length)];
+  f.gauss = () => { let u = 0, v = 0; while (!u) u = f(); while (!v) v = f(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  return f;
+}
+const R = rng(Date.now() % 1e9);
+function shuffle(arr, r = R) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+/** Область жизни: всё, что зарегистрировано, снимается при dispose() */
+class Scope {
+  constructor() { this.fns = []; this.alive = true; this.keys = {}; this._keys = false; }
+  on(target, evt, fn, opts) { target.addEventListener(evt, fn, opts); this.fns.push(() => target.removeEventListener(evt, fn, opts)); }
+  raf(fn) {
+    let last = performance.now(), id = 0, stopped = false;
+    const step = (t) => {
+      if (!this.alive || stopped) return;
+      const dt = Math.min(0.05, (t - last) / 1000); last = t;
+      if (fn(dt, t) === false) { stopped = true; return; }
+      id = requestAnimationFrame(step);
+    };
+    id = requestAnimationFrame(step);
+    const stop = () => { stopped = true; cancelAnimationFrame(id); };
+    this.fns.push(stop);
+    return stop;
+  }
+  timeout(fn, ms) { const id = setTimeout(() => this.alive && fn(), ms); this.fns.push(() => clearTimeout(id)); return id; }
+  interval(fn, ms) { const id = setInterval(() => this.alive && fn(), ms); this.fns.push(() => clearInterval(id)); return id; }
+  trackKeys() {
+    if (this._keys) return this.keys;
+    this._keys = true;
+    const block = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+    this.on(window, 'keydown', (e) => {
+      if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      this.keys[e.code] = true;
+      if (block.includes(e.code)) e.preventDefault();
+    });
+    this.on(window, 'keyup', (e) => { this.keys[e.code] = false; });
+    this.on(window, 'blur', () => { for (const k in this.keys) this.keys[k] = false; });
+    return this.keys;
+  }
+  dispose() { this.alive = false; this.fns.forEach((f) => { try { f(); } catch (e) { /* noop */ } }); this.fns = []; }
+}
+
+/** Экранные кнопки для сенсорных устройств: эмулируют клавиши */
+function touchControls(scope, groups) {
+  const wrap = h('<div class="touch-pad"></div>');
+  for (const g of groups) {
+    const grp = h('<div class="touch-group"></div>');
+    for (const b of g) {
+      const btn = h(`<button class="touch-btn" type="button">${b.label}</button>`);
+      if (b.wide) btn.classList.add('wide');
+      const down = (e) => { e.preventDefault(); btn.classList.add('on'); window.dispatchEvent(new KeyboardEvent('keydown', { code: b.code, key: b.code })); };
+      const up = (e) => { e.preventDefault(); if (!btn.classList.contains('on')) return; btn.classList.remove('on'); window.dispatchEvent(new KeyboardEvent('keyup', { code: b.code, key: b.code })); };
+      scope.on(btn, 'pointerdown', down);
+      scope.on(btn, 'pointerup', up);
+      scope.on(btn, 'pointerleave', up);
+      scope.on(btn, 'pointercancel', up);
+      grp.appendChild(btn);
+    }
+    wrap.appendChild(grp);
+  }
+  return wrap;
+}
+
+/** Координаты указателя в системе координат canvas */
+function canvasPoint(canvas, e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+}
+
+/* ===== Сохранение ===== */
+const Store = {
+  key: 'space-missions-v1',
+  data: { name: '', role: null, best: {} },
+  load() { try { const s = JSON.parse(localStorage.getItem(this.key)); if (s) this.data = Object.assign(this.data, s); } catch (e) { /* noop */ } return this.data; },
+  save() { try { localStorage.setItem(this.key, JSON.stringify(this.data)); } catch (e) { /* noop */ } },
+  reset() { this.data = { name: '', role: null, best: {} }; try { localStorage.removeItem(this.key); } catch (e) { /* noop */ } },
+};
+const starsFor = (score) => (score >= 90 ? 3 : score >= 70 ? 2 : score >= 40 ? 1 : 0);
+const starStr = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+/* ===== Ассистентка ===== */
+const ASSISTANT = { name: 'Эмили Картер', title: 'координатор миссий' };
+const AVATAR_SVG = `
+<svg viewBox="0 0 120 120" class="avatar-svg" aria-hidden="true">
+  <defs>
+    <radialGradient id="avbg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#2b4f8a"/><stop offset="1" stop-color="#0d1730"/></radialGradient>
+    <linearGradient id="avhair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a3420"/><stop offset="1" stop-color="#3a2014"/></linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="58" fill="url(#avbg)"/>
+  <path d="M28 64 C24 30 44 18 60 18 C80 18 98 30 92 70 L92 96 L28 96 Z" fill="url(#avhair)"/>
+  <path d="M22 120 C24 96 40 88 60 88 C80 88 96 96 98 120 Z" fill="#1d3f7a"/>
+  <path d="M48 88 L60 104 L72 88 Z" fill="#e9eef7"/>
+  <rect x="52" y="74" width="16" height="16" rx="6" fill="#e9b48f"/>
+  <ellipse cx="60" cy="56" rx="21" ry="25" fill="#f2c4a0"/>
+  <path d="M38 52 C40 30 58 28 66 30 C76 32 84 40 82 54 C76 42 62 38 50 42 C44 44 40 48 38 52 Z" fill="url(#avhair)"/>
+  <ellipse cx="51.5" cy="57" rx="2.6" ry="3.2" fill="#2a1a12"/>
+  <ellipse cx="68.5" cy="57" rx="2.6" ry="3.2" fill="#2a1a12"/>
+  <path d="M47 50 Q51.5 47.5 56 50" stroke="#3a2014" stroke-width="1.6" fill="none"/>
+  <path d="M64 50 Q68.5 47.5 73 50" stroke="#3a2014" stroke-width="1.6" fill="none"/>
+  <path d="M60 60 L58 66 L61 66" stroke="#d49a78" stroke-width="1.4" fill="none"/>
+  <path d="M53 71 Q60 76 67 71" stroke="#b5524a" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="46" cy="65" rx="4" ry="2.4" fill="#f0a08a" opacity=".45"/>
+  <ellipse cx="74" cy="65" rx="4" ry="2.4" fill="#f0a08a" opacity=".45"/>
+  <path d="M36 56 C34 38 46 28 60 28 C74 28 86 38 84 56" stroke="#1b1f2a" stroke-width="3.5" fill="none"/>
+  <rect x="32" y="52" width="8" height="14" rx="3" fill="#1b1f2a"/>
+  <path d="M36 66 C38 76 46 78 52 76" stroke="#1b1f2a" stroke-width="2" fill="none"/>
+  <circle cx="53" cy="76" r="2.4" fill="#1b1f2a"/>
+  <circle cx="84" cy="102" r="6" fill="#d8dde8"/><path d="M80 102 h8 M84 98 v8" stroke="#1d3f7a" stroke-width="1.6"/>
+</svg>`;
+
+/** Диалог с ассистенткой. lines: строки (можно HTML). Возвращает Promise, завершается после последней реплики */
+function talk(container, lines, opts = {}) {
+  return new Promise((resolve) => {
+    const box = h(`
+      <div class="dialog">
+        <div class="avatar">${AVATAR_SVG}</div>
+        <div class="bubble">
+          <div class="speaker">${ASSISTANT.name} <span>· ${ASSISTANT.title}</span></div>
+          <div class="speech"></div>
+          <div class="dialog-actions"><button class="btn btn-primary next" type="button">Далее ▸</button></div>
+        </div>
+      </div>`);
+    container.appendChild(box);
+    const speech = $('.speech', box);
+    const next = $('.next', box);
+    let i = 0, typing = null, full = '';
+    const show = () => {
+      full = lines[i];
+      const plain = full.replace(/<[^>]+>/g, '');
+      let n = 0;
+      speech.textContent = '';
+      clearInterval(typing);
+      typing = setInterval(() => {
+        n += 2;
+        if (n >= plain.length) { clearInterval(typing); typing = null; speech.innerHTML = full; return; }
+        speech.textContent = plain.slice(0, n);
+      }, 16);
+      next.textContent = i === lines.length - 1 ? (opts.lastLabel || 'Понятно ✓') : 'Далее ▸';
+    };
+    const advance = () => {
+      if (typing) { clearInterval(typing); typing = null; speech.innerHTML = full; return; }
+      i++;
+      if (i >= lines.length) {
+        if (opts.keep) { next.remove(); } else { box.remove(); }
+        resolve();
+        return;
+      }
+      show();
+    };
+    next.addEventListener('click', advance);
+    show();
+  });
+}
+
+/** Короткая подсказка ассистентки внутри миссии */
+function hintBox(text) {
+  return h(`<div class="hint"><div class="mini-avatar">${AVATAR_SVG}</div><div class="hint-text">${text}</div></div>`);
+}
+
+/* ===== Реестр миссий ===== */
+const Missions = {
+  list: [],
+  register(m) { this.list.push(m); },
+  get(id) { return this.list.find((m) => m.id === id); },
+};
+const CATEGORIES = {
+  orbit: { title: '🛰 Околоземная орбита', sub: 'МКС, Тяньгун' },
+  moon: { title: '🌕 Полёты к Луне', sub: 'Artemis и разведка южного полюса' },
+  mars: { title: '🔴 Полёты к Марсу', sub: 'Пока туда летают только роботы' },
+};
+const ROLES = {
+  pilot: { title: 'Пилот', icon: '👨‍🚀', desc: 'Участвует в миссиях, которые требуют личного присутствия: выходы в открытый космос, испытательные полёты, высадка и работа на Луне.' },
+  scientist: { title: 'Учёный', icon: '🔬', desc: 'Работает над удалёнными миссиями: наблюдение Земли, управление спутниками, съёмка Луны, орбитальные аппараты и марсоходы.' },
+};
+
+/* ===== Звёздный фон ===== */
+(function starfield() {
+  const c = document.getElementById('stars');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let stars = [];
+  const resize = () => {
+    c.width = innerWidth; c.height = innerHeight;
+    stars = Array.from({ length: Math.round((c.width * c.height) / 5000) }, () => ({
+      x: Math.random() * c.width, y: Math.random() * c.height, r: Math.random() * 1.4 + 0.2, p: Math.random() * 6.28, s: 0.3 + Math.random() * 1.2,
+    }));
+  };
+  resize();
+  addEventListener('resize', resize);
+  const draw = (t) => {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const s of stars) {
+      const a = 0.45 + 0.45 * Math.sin(s.p + t * 0.001 * s.s);
+      ctx.fillStyle = `rgba(220,230,255,${a})`;
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
+    requestAnimationFrame(draw);
+  };
+  requestAnimationFrame(draw);
+})();
+
+/* ===== js/moon-art.js ===== */
+'use strict';
+/* Общая графика Луны: процедурная поверхность и кратеры (нужна миссиям «Фотосъёмка» и «Высадка») */
+(function () {
+  /** Процедурная текстура лунной поверхности */
+  function moonTexture(w, h, seed, extraCraters) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d');
+    const r = rng(seed);
+    x.fillStyle = '#7d7b78'; x.fillRect(0, 0, w, h);
+    for (let i = 0; i < w * h / 900; i++) { const g = 100 + r() * 60; x.fillStyle = `rgba(${g},${g},${g - 4},0.25)`; x.fillRect(r() * w, r() * h, r() * 14 + 2, r() * 14 + 2); }
+    for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(60,60,62,.25)'; x.beginPath(); x.ellipse(r() * w, r() * h, r.range(80, 260), r.range(60, 180), r() * 3, 0, 7); x.fill(); }
+    const craters = [];
+    for (let i = 0; i < w * h / 5200; i++) craters.push([r() * w, r() * h, Math.pow(r(), 4.5) * 46 + 1.5]);
+    (extraCraters || []).forEach((cc) => craters.push(cc));
+    craters.forEach(([cx, cy, rr]) => drawCrater(x, cx, cy, rr));
+    return c;
+  }
+  function drawCrater(x, cx, cy, rr) {
+    // Солнце низко с востока: тень с западной стороны
+    const g = x.createRadialGradient(cx + rr * 0.35, cy, rr * 0.2, cx, cy, rr);
+    g.addColorStop(0, 'rgba(25,25,28,0.9)'); g.addColorStop(0.75, 'rgba(60,60,62,0.6)'); g.addColorStop(1, 'rgba(60,60,62,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, rr, 0, 7); x.fill();
+    x.strokeStyle = 'rgba(210,208,200,.55)'; x.lineWidth = Math.max(1, rr * 0.12);
+    x.beginPath(); x.arc(cx, cy, rr * 0.92, -Math.PI / 2 - 0.9, Math.PI / 2 + 0.9, true); x.stroke();
+  }
+
+  window.MoonArt = { moonTexture, drawCrater };
+})();
+
+/* ===== js/missions/recon.js ===== */
+'use strict';
+/* Миссия 5. Фотосъёмка и разведка мест посадки на Луне */
+(function () {
+  const W = 960, H = 540;
+  const STEPS = ['Орбитальная съёмка', 'Поиск изменений', 'Движение Луны'];
+
+  const { moonTexture, drawCrater } = window.MoonArt;
+
+  function start(root, api) {
+    const S = api.scope;
+    const keys = S.trackKeys();
+    const details = [];
+    const part = { a: 0, b: 0, c: 0 };
+    const header = (i, t) => `<div class="stage-title"><h3>${t}</h3><div class="steps">${STEPS.map((s, k) => `<span class="step ${k < i ? 'done' : k === i ? 'on' : ''}">${s}</span>`).join('')}</div></div>`;
+
+    /* ---------- A. Орбитальная съёмка ---------- */
+    function orbitPhotos() {
+      root.innerHTML = '';
+      const el = h(`<div>${header(0, 'Съёмка мест посадки у южного полюса')}<canvas class="game-canvas" width="${W}" height="${H}"></canvas></div>`);
+      root.appendChild(el);
+      el.appendChild(touchControls(S, [
+        [{ label: '◀', code: 'ArrowLeft' }, { label: '▲', code: 'ArrowUp' }, { label: '▼', code: 'ArrowDown' }, { label: '▶', code: 'ArrowRight' }],
+        [{ label: 'Z зум', code: 'KeyZ', wide: true }, { label: '📸', code: 'Space' }],
+      ]));
+      api.hint('Аппарат летит над полюсом, поверхность движется справа налево. Стрелки ◀▶ наклоняют камеру вперёд/назад по ходу полёта, ▲▼ — поперёк. Z — зум (×1/×2/×4). Пробел — снимок. Каждая цель требует нужный зум и угол съёмки — смотрите список справа.');
+      const cv = $('canvas', el), ctx = cv.getContext('2d');
+      const TW = 5200, TH = 900;
+      const tex = moonTexture(TW, TH, 7331);
+      const tctx = tex.getContext('2d');
+      const targets = [
+        { name: 'Кратер Шеклтон', x: 1100, y: 420, r: 36, zoom: 2, angle: 'nadir', shot: null },
+        { name: 'Гребень Малаперт', x: 1850, y: 260, r: 30, zoom: 1, angle: 'oblique', shot: null },
+        { name: 'Кратер Де Герлах', x: 2650, y: 600, r: 32, zoom: 4, angle: 'nadir', shot: null },
+        { name: 'Плато Нобиле', x: 3500, y: 330, r: 34, zoom: 2, angle: 'oblique', shot: null },
+        { name: 'Кратер Хаворт', x: 4300, y: 520, r: 30, zoom: 4, angle: 'oblique', shot: null },
+      ];
+      targets.forEach((t) => {
+        drawCrater(tctx, t.x, t.y, t.r);
+        tctx.strokeStyle = 'rgba(255,220,120,.0)';
+      });
+      const ALT = 600; // условная высота в пикселях текстуры
+      const s = { pos: 480, tilt: 0, cross: 450, zoom: 1, flash: 0, msg: '', msgT: 0, over: false, shots: 0 };
+      const zooms = [1, 2, 4];
+      S.on(window, 'keydown', (e) => {
+        if (s.over) return;
+        if (e.code === 'KeyZ') s.zoom = zooms[(zooms.indexOf(s.zoom) + 1) % 3];
+        if (e.code === 'Space') snap();
+      });
+      S.on(cv, 'wheel', (e) => { e.preventDefault(); const i = zooms.indexOf(s.zoom) + (e.deltaY < 0 ? 1 : -1); s.zoom = zooms[clamp(i, 0, 2)]; }, { passive: false });
+      const viewCenter = () => ({ x: s.pos + Math.tan((s.tilt * Math.PI) / 180) * ALT, y: s.cross });
+      function snap() {
+        s.flash = 0.25; s.shots++;
+        const vc = viewCenter();
+        const half = 90 / s.zoom;
+        const t = targets.find((tt) => !tt.shot && Math.abs(tt.x - vc.x) < half && Math.abs(tt.y - vc.y) < half);
+        if (!t) { s.msg = 'В кадре нет цели из списка.'; s.msgT = 2; return; }
+        const angOk = t.angle === 'nadir' ? Math.abs(s.tilt) < 10 : Math.abs(s.tilt) >= 18 && Math.abs(s.tilt) <= 38;
+        const zoomOk = s.zoom === t.zoom;
+        const centered = 1 - dist(t.x, t.y, vc.x, vc.y) / (half * 1.42);
+        t.shot = { angOk, zoomOk, q: Math.round(clamp((angOk ? 45 : 10) + (zoomOk ? 35 : 10) + centered * 20, 0, 100)) };
+        s.msg = `${t.name}: снимок принят (${t.shot.q}%)${!angOk ? ' — неверный угол' : ''}${!zoomOk ? ' — неверный зум' : ''}`; s.msgT = 3;
+      }
+      S.raf((dt) => {
+        if (s.over) return false;
+        s.pos += 70 * dt; s.flash -= dt; s.msgT -= dt;
+        if (keys.ArrowRight) s.tilt = Math.min(40, s.tilt + 30 * dt);
+        if (keys.ArrowLeft) s.tilt = Math.max(-40, s.tilt - 30 * dt);
+        if (keys.ArrowUp) s.cross = Math.max(80, s.cross - 220 * dt);
+        if (keys.ArrowDown) s.cross = Math.min(TH - 80, s.cross + 220 * dt);
+        if (s.pos > TW - 300) {
+          s.over = true;
+          const sum = targets.reduce((a, t) => a + (t.shot ? t.shot.q : 0), 0);
+          part.a = sum / targets.length;
+          details.push(`Орбитальная съёмка: снято ${targets.filter((t) => t.shot).length}/5 мест посадки, среднее качество ${fmt(part.a, 0)}%`);
+          targets.filter((t) => !t.shot).forEach((t) => details.push(`<span class="warn">Пропущена цель: ${t.name}</span>`));
+          S.timeout(blink, 600);
+        }
+        // отрисовка
+        const vc = viewCenter();
+        const sw = W / s.zoom, sh = H / s.zoom;
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(tex, vc.x - sw / 2, vc.y - sh / 2, sw, sh, 0, 0, W, H);
+        // эффект наклона: лёгкое затемнение к краю
+        if (Math.abs(s.tilt) > 5) { const gg = ctx.createLinearGradient(0, 0, W, 0); const a = Math.abs(s.tilt) / 80; if (s.tilt > 0) { gg.addColorStop(0, 'rgba(0,0,0,0)'); gg.addColorStop(1, `rgba(0,0,0,${a})`); } else { gg.addColorStop(0, `rgba(0,0,0,${a})`); gg.addColorStop(1, 'rgba(0,0,0,0)'); } ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H); }
+        // метки целей
+        targets.forEach((t) => {
+          const sx = (t.x - vc.x) * s.zoom + W / 2, sy = (t.y - vc.y) * s.zoom + H / 2;
+          if (sx < -60 || sx > W + 60) return;
+          ctx.strokeStyle = t.shot ? 'rgba(79,224,138,.8)' : 'rgba(255,210,90,.9)'; ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(sx, sy, t.r * s.zoom + 8, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = '#ffd25a'; ctx.font = '14px "Exo 2"'; ctx.textAlign = 'center'; ctx.fillText(t.name, sx, sy - t.r * s.zoom - 14);
+        });
+        // рамка кадра
+        const fr = 90;
+        ctx.strokeStyle = '#7cf0d0'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - fr, H / 2 - fr, fr * 2, fr * 2);
+        ctx.beginPath(); ctx.moveTo(W / 2 - 10, H / 2); ctx.lineTo(W / 2 + 10, H / 2); ctx.moveTo(W / 2, H / 2 - 10); ctx.lineTo(W / 2, H / 2 + 10); ctx.stroke();
+        if (s.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${s.flash * 3})`; ctx.fillRect(0, 0, W, H); }
+        // HUD
+        ctx.fillStyle = 'rgba(0,8,20,.75)'; ctx.fillRect(10, 10, 250, 80);
+        ctx.fillStyle = '#fff'; ctx.font = '14px "Exo 2"'; ctx.textAlign = 'left';
+        ctx.fillText(`Наклон камеры: ${fmt(s.tilt, 0)}° ${Math.abs(s.tilt) < 10 ? '(надир)' : Math.abs(s.tilt) >= 18 && Math.abs(s.tilt) <= 38 ? '(наклонная)' : ''}`, 20, 32);
+        ctx.fillText(`Зум: ×${s.zoom}`, 20, 54);
+        ctx.fillText(`Пройдено: ${fmt((s.pos / (TW - 300)) * 100, 0)}% витка`, 20, 76);
+        ctx.fillStyle = 'rgba(0,8,20,.75)'; ctx.fillRect(W - 330, 10, 320, 26 + targets.length * 22);
+        ctx.fillStyle = '#7cf0d0'; ctx.fillText('Список целей', W - 318, 30);
+        targets.forEach((t, i) => {
+          ctx.fillStyle = t.shot ? '#4fe08a' : '#fff';
+          ctx.fillText(`${t.shot ? '✓' : '○'} ${t.name}: ×${t.zoom}, ${t.angle === 'nadir' ? 'надир <10°' : 'наклон 18–38°'}`, W - 318, 52 + i * 22);
+        });
+        if (s.msgT > 0) { ctx.fillStyle = 'rgba(0,8,20,.85)'; ctx.fillRect(W / 2 - 280, H - 56, 560, 34); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(s.msg, W / 2, H - 34); }
+      });
+    }
+
+    /* ---------- B. Мигающий компаратор: поиск нового кратера ---------- */
+    function blink() {
+      root.innerHTML = '';
+      const el = h(`<div>${header(1, 'Поиск изменений: снимки «до» и «после»')}
+        <div class="row" style="margin-bottom:8px"><button class="btn small tog">⏯ Мигание: вкл</button><span class="muted small">Раунд <b class="rd">1</b>/2 · попыток: <b class="tr">3</b></span></div>
+        <div class="canvas-wrap"><canvas class="game-canvas" width="${W}" height="${H}" style="cursor:crosshair"></canvas></div></div>`);
+      root.appendChild(el);
+      api.hint('Сравниваем снимки одного участка, сделанные с разницей в несколько месяцев. Где-то появился свежий кратер от удара метеорита — это аномалия! Нажмите на место, где он появился.');
+      const cv = $('canvas', el), ctx = cv.getContext('2d');
+      let round = 0, score = 0, imgs = null, fresh = null, tries = 3, blinkOn = true, showB = false, done = false;
+      const makeRound = () => {
+        const seed = Math.floor(Math.random() * 1e6);
+        fresh = { x: R.range(120, W - 120), y: R.range(100, H - 100), r: R.range(7, 11) };
+        imgs = [moonTexture(W, H, seed), moonTexture(W, H, seed)];
+        const bx = imgs[1].getContext('2d');
+        drawCrater(bx, fresh.x, fresh.y, fresh.r);
+        bx.fillStyle = 'rgba(230,228,220,.2)'; bx.beginPath(); bx.arc(fresh.x, fresh.y, fresh.r * 2.4, 0, 7); bx.fill(); // светлый выброс
+        tries = 3; $('.tr', el).textContent = tries; $('.rd', el).textContent = round + 1;
+      };
+      makeRound();
+      $('.tog', el).addEventListener('click', (e) => { blinkOn = !blinkOn; e.target.textContent = `⏯ Мигание: ${blinkOn ? 'вкл' : 'выкл'}`; });
+      let tt = 0, mark = null;
+      S.raf((dt) => {
+        tt += dt;
+        showB = blinkOn ? Math.floor(tt / 0.6) % 2 === 1 : false;
+        ctx.drawImage(imgs[showB ? 1 : 0], 0, 0);
+        ctx.fillStyle = 'rgba(0,8,20,.75)'; ctx.fillRect(10, 10, 200, 30);
+        ctx.fillStyle = showB ? '#ffd25a' : '#7cf0d0'; ctx.font = '15px "Exo 2"'; ctx.textAlign = 'left';
+        ctx.fillText(showB ? 'СНИМОК «ПОСЛЕ»' : 'СНИМОК «ДО»', 22, 31);
+        if (mark) { ctx.strokeStyle = mark.ok ? '#4fe08a' : '#ff5d6c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(mark.x, mark.y, 26, 0, 7); ctx.stroke(); }
+        if (done) return false;
+      });
+      S.on(cv, 'pointerdown', (e) => {
+        if (done) return;
+        const p = canvasPoint(cv, e);
+        const ok = dist(p.x, p.y, fresh.x, fresh.y) < 32;
+        mark = { x: ok ? fresh.x : p.x, y: ok ? fresh.y : p.y, ok };
+        if (ok || --tries <= 0) {
+          if (ok) score += tries === 3 ? 50 : tries === 2 ? 35 : 20;
+          else mark = { x: fresh.x, y: fresh.y, ok: false };
+          round++;
+          if (round >= 2) {
+            done = true; part.b = score;
+            details.push(`Поиск изменений: результат ${score}/100`);
+            S.timeout(motion, 1200);
+          } else S.timeout(() => { mark = null; makeRound(); }, 1200);
+        }
+        $('.tr', el).textContent = Math.max(tries, 0);
+      });
+    }
+
+    /* ---------- C. Движение Луны: поиск аномального измерения ---------- */
+    function motion() {
+      root.innerHTML = '';
+      const el = h(`<div>${header(2, 'Изучение движения Луны')}
+        <canvas class="game-canvas" width="${W}" height="420" style="cursor:pointer"></canvas>
+        <div class="card q2 hidden"><h4>В какой день Луна была ближе всего к Земле (перигей)?</h4><div class="choices"></div></div></div>`);
+      root.appendChild(el);
+      api.hint('Лазерные дальномеры каждый день измеряют расстояние до Луны по отражателям, оставленным на её поверхности. Орбита Луны — эллипс, поэтому расстояние плавно меняется. Одно измерение явно ошибочное — нажмите на эту точку.');
+      const cv = $('canvas', el), ctx = cv.getContext('2d');
+      const Wc = 960, Hc = 420;
+      const phase = R.range(0, 6.28);
+      const days = Array.from({ length: 30 }, (_, i) => ({ d: i + 1, v: 381600 - 25000 * Math.cos((2 * Math.PI * i) / 27.55 + phase) + R.gauss() * 400 }));
+      const bad = R.int(4, 25);
+      days[bad].v += (R() < 0.5 ? -1 : 1) * R.range(9000, 13000);
+      const X = (i) => 60 + (i / 29) * (Wc - 100), Y = (v) => 30 + (1 - (v - 340000) / (420000 - 340000)) * (Hc - 80);
+      let chosen = null, stage = 0, score = 0;
+      const draw = () => {
+        ctx.fillStyle = '#071024'; ctx.fillRect(0, 0, Wc, Hc);
+        ctx.strokeStyle = 'rgba(140,170,230,.15)'; ctx.fillStyle = '#93a2c4'; ctx.font = '13px "Exo 2"'; ctx.textAlign = 'right';
+        for (let v = 350000; v <= 410000; v += 10000) { ctx.beginPath(); ctx.moveTo(60, Y(v)); ctx.lineTo(Wc - 40, Y(v)); ctx.stroke(); ctx.fillText(`${v / 1000}`, 54, Y(v) + 4); }
+        ctx.textAlign = 'left'; ctx.fillText('тыс. км', 8, 18);
+        ctx.textAlign = 'center';
+        days.forEach((d, i) => { if (i % 3 === 0) ctx.fillText(`день ${d.d}`, X(i), Hc - 20); });
+        ctx.strokeStyle = 'rgba(124,240,208,.35)'; ctx.beginPath();
+        days.forEach((d, i) => (i ? ctx.lineTo(X(i), Y(d.v)) : ctx.moveTo(X(i), Y(d.v)))); ctx.stroke();
+        days.forEach((d, i) => {
+          ctx.fillStyle = chosen === i ? (i === bad ? '#4fe08a' : '#ff5d6c') : (stage > 0 && i === bad ? '#4fe08a' : '#7cf0d0');
+          ctx.beginPath(); ctx.arc(X(i), Y(d.v), chosen === i ? 8 : 5, 0, 7); ctx.fill();
+        });
+      };
+      draw();
+      S.on(cv, 'pointerdown', (e) => {
+        if (stage > 0) return;
+        const p = canvasPoint(cv, e);
+        let best = -1, bd = 1e9;
+        days.forEach((d, i) => { const dd = dist(p.x, p.y, X(i), Y(d.v)); if (dd < bd) { bd = dd; best = i; } });
+        if (bd > 30) return;
+        chosen = best; stage = 1;
+        const ok = best === bad;
+        if (ok) score += 50;
+        details.push(`Аномальное измерение (день ${bad + 1}): ${ok ? '<span class="ok">найдено</span>' : '<span class="bad">не найдено</span>'}`);
+        draw();
+        api.hint(ok ? 'Верно! Это измерение выбивается из плавной кривой — скорее всего, сбой прибора, а не настоящая аномалия.' : `Не та точка. Ошибочное измерение было в день ${bad + 1} — оно выбивается из плавной кривой.`);
+        // вопрос про перигей
+        const clean = days.map((d, i) => (i === bad ? 1e9 : d.v));
+        const per = clean.indexOf(Math.min(...clean));
+        const opts = shuffle([per, (per + 7) % 30, (per + 14) % 30, (per + 21) % 30]);
+        const q = $('.q2', el); q.classList.remove('hidden');
+        const ch = $('.choices', q);
+        ch.innerHTML = opts.map((o) => `<button class="choice" data-d="${o}"><b>День ${o + 1}</b></button>`).join('');
+        ch.addEventListener('click', (ev) => {
+          const b = ev.target.closest('[data-d]'); if (!b || stage > 1) return;
+          stage = 2;
+          const right = Math.abs(+b.dataset.d - per) <= 1;
+          if (right) score += 50;
+          $$('[data-d]', ch).forEach((x) => { if (+x.dataset.d === per) x.classList.add('right'); else if (x === b) x.classList.add('wrong'); });
+          details.push(`Перигей определён ${right ? '<span class="ok">верно</span>' : '<span class="bad">неверно</span>'} (день ${per + 1}, ${fmt(days[per].v, 0)} км)`);
+          part.c = score;
+          S.timeout(() => api.finish(part.a * 0.55 + part.b * 0.25 + part.c * 0.2, details), 1200);
+        });
+      });
+    }
+
+    orbitPhotos();
+  }
+
+  Missions.register({
+    id: 'recon', role: 'scientist', cat: 'moon', icon: '📸', title: 'Фотосъёмка и разведка мест посадки',
+    short: 'Съёмка южного полюса Луны, поиск аномалий и изучение её движения',
+    facts: [
+      'Снимки южного полюса Луны особенно ценны: именно там будут садиться следующие экспедиции Artemis.',
+      'Солнце на полюсе всегда низко над горизонтом, поэтому тени очень длинные, а дно некоторых кратеров не освещалось миллиарды лет.',
+      'Орбитальные камеры, сравнивая снимки разных лет, нашли сотни свежих ударных кратеров.',
+      'Расстояние до Луны меняется примерно от 356 до 407 тыс. км — её орбита эллиптическая.',
+    ],
+    briefing: [
+      'Учёный, следующим экспедициям нужны места для посадки. Ваша задача — разведка южного полюса Луны с орбиты.',
+      'Сначала проведём <b>съёмку пяти мест посадки</b>. Для каждого места указан нужный зум и ракурс: строго вниз (надир) — для карт, наклонная съёмка — чтобы оценить рельеф и склоны.',
+      'Затем — <b>поиск аномалий</b>: сравним старые и новые снимки и найдём свежие кратеры. А в конце изучим <b>движение Луны</b> по данным лазерной дальнометрии.',
+    ],
+    controls: '<b>Стрелки</b> — наклон камеры, <b>Z</b> или колесо мыши — зум, <b>Пробел</b> — снимок. Далее — мышью.',
+    start,
+  });
+})();
+
+/* ===== js/embed.js ===== */
+'use strict';
+/* Встраивание отдельных миссий в любой проект.
+ *
+ *   const game = SpaceMissions.mount('rover', document.getElementById('box'), {
+ *     briefing: true,                       // показать брифинг ассистентки перед стартом
+ *     onFinish: ({ id, score, stars, details }) => { ... },  // свой обработчик результата
+ *   });
+ *   game.restart();   // начать заново
+ *   game.destroy();   // остановить и очистить контейнер
+ *
+ * Нужны: css/style.css, js/core.js, js/moon-art.js (для Луны), файл миссии и этот файл.
+ */
+(function () {
+  function mount(id, container, opts = {}) {
+    const m = Missions.get(id);
+    if (!m) throw new Error(`Миссия «${id}» не найдена. Доступны: ${Missions.list.map((x) => x.id).join(', ')}`);
+    let scope = null;
+
+    const clear = () => { if (scope) { scope.dispose(); scope = null; } container.innerHTML = ''; };
+
+    async function briefing() {
+      clear();
+      const el = h(`<section class="briefing screen">
+        <h2>${m.icon} ${m.title}</h2>
+        <div class="brief-talk"></div>
+        <div class="brief-facts card"><h4>Справка</h4><ul>${m.facts.map((f) => `<li>${f}</li>`).join('')}</ul></div>
+        <div class="brief-go hidden"><div class="card controls-card"><h4>Управление</h4><p>${m.controls}</p></div>
+          <button class="btn btn-primary big" type="button">🚀 Начать миссию</button></div>
+      </section>`);
+      container.appendChild(el);
+      $('.brief-go button', el).addEventListener('click', play);
+      await talk($('.brief-talk', el), m.briefing, { keep: true, lastLabel: 'Всё ясно' });
+      if (el.isConnected) $('.brief-go', el).classList.remove('hidden');
+    }
+
+    function play() {
+      clear();
+      scope = new Scope();
+      const el = h(`<section class="mission screen">
+        <div class="mission-bar"><div class="mb-title">${m.icon} ${m.title}</div></div>
+        <div class="mission-hint"></div><div class="mission-root"></div></section>`);
+      container.appendChild(el);
+      const hintEl = $('.mission-hint', el);
+      let finished = false;
+      const api = {
+        scope,
+        hint(text) { hintEl.innerHTML = ''; if (text) hintEl.appendChild(hintBox(text)); },
+        finish(score, details = []) {
+          if (finished) return;
+          finished = true;
+          score = Math.round(clamp(score, 0, 100));
+          const res = { id: m.id, score, stars: starsFor(score), details };
+          if (opts.onFinish) { clear(); opts.onFinish(res); } else result(res);
+        },
+      };
+      m.start($('.mission-root', el), api);
+    }
+
+    function result({ score, stars, details }) {
+      clear();
+      const el = h(`<section class="result screen">
+        <h2>${m.icon} ${m.title}: ${score >= 40 ? 'миссия выполнена' : 'миссия провалена'}</h2>
+        <div class="result-score card"><div class="score-num">${score}<span>/100</span></div><div class="stars huge">${starStr(stars)}</div></div>
+        ${details.length ? `<div class="card"><h4>Отчёт о миссии</h4><ul class="report">${details.map((x) => `<li>${x}</li>`).join('')}</ul></div>` : ''}
+        <div class="row center"><button class="btn btn-primary" type="button">↻ Пройти ещё раз</button></div></section>`);
+      container.appendChild(el);
+      $('button', el).addEventListener('click', start);
+    }
+
+    const start = () => (opts.briefing === false ? play() : briefing());
+    start();
+    return { restart: start, destroy: clear };
+  }
+
+  window.SpaceMissions = {
+    mount,
+    list: () => Missions.list.map(({ id, title, role, cat, icon, short }) => ({ id, title, role, cat, icon, short })),
+  };
+})();
+
+SpaceMissions.mount('recon', document.getElementById('app'));
+</script>
+</body>
+</html>

@@ -40,14 +40,58 @@ python3 -m http.server 8000
 - Клавиатура в аркадных миссиях: стрелки или WASD, а также `E`, `Пробел`, `F`, `Q`, `Z`. Подсказка по управлению есть на брифинге каждой миссии.
 - На сенсорных экранах под игровым полем появляются экранные кнопки.
 
+## Отдельные миссии для других проектов
+
+### Вариант 1: готовый файл (проще всего)
+
+В папке `embed/` лежит по одному файлу на миссию: `earth.html`, `spacewalk.html`, `docking.html`, `testflight.html`, `recon.html`, `landing.html`, `base.html`, `isru.html`, `orbiter.html`, `rover.html`. Внутри каждого уже есть всё нужное: стили, код, брифинг ассистентки и экран результата. Файл можно открыть сам по себе или вставить в любую страницу через iframe:
+
+```html
+<iframe src="embed/rover.html" width="1000" height="760" style="border:0"></iframe>
+```
+
+iframe изолирует стили игры, поэтому они не конфликтуют с дизайном вашего сайта.
+
+### Вариант 2: подключить код напрямую
+
+Скопируйте `css/style.css`, `js/core.js`, `js/embed.js` и файл нужной миссии из `js/missions/`. Для лунных миссий (`recon`, `landing`) нужен ещё `js/moon-art.js`.
+
+```html
+<link rel="stylesheet" href="css/style.css">
+<div id="mission-box"></div>
+
+<script src="js/core.js"></script>
+<script src="js/moon-art.js"></script>      <!-- только для recon и landing -->
+<script src="js/missions/landing.js"></script>
+<script src="js/embed.js"></script>
+<script>
+  const game = SpaceMissions.mount('landing', document.getElementById('mission-box'), {
+    briefing: true,                    // false — сразу начать миссию без брифинга
+    onFinish: (r) => console.log(r),   // { id, score, stars, details }; без него покажется встроенный экран итога
+  });
+  // game.restart();  game.destroy();
+</script>
+```
+
+`style.css` задаёт оформление всей страницы (фон, шрифт, классы `.btn`, `.card` и т. д.). Если стили конфликтуют с вашим проектом, используйте вариант с iframe.
+
+После изменения кода миссий пересоберите файлы в `embed/`:
+
+```bash
+python3 tools/build_embed.py
+```
+
 ## Структура
 
 ```
 index.html
 css/style.css
 js/core.js          — утилиты, сохранение, ассистентка, реестр миссий, звёздный фон
+js/moon-art.js      — общая графика Луны (поверхность, кратеры)
+js/embed.js         — SpaceMissions.mount: запуск одной миссии в любом контейнере
 js/main.js          — экраны: приветствие, выбор роли, меню, брифинг, миссия, итог
 js/missions/*.js    — по файлу на каждую миссию
+embed/*.html        — самодостаточные файлы отдельных миссий (собираются tools/build_embed.py)
 ```
 
 Новая миссия добавляется вызовом `Missions.register({ id, role, cat, icon, title, short, facts, briefing, controls, start(root, api) })`, где `api.finish(score, details)` завершает миссию.
